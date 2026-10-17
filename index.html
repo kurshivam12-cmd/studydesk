@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>StudyDesk</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef2f7;--card:#fff;--ink:#14213d;--mute:#5b6783;--line:#d5dce8;--acc:#ffd84d;--accink:#14213d;--danger:#c2410c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1424;--card:#172038;--ink:#e8ecf6;--mute:#9aa6c2;--line:#2a3554;--danger:#fb923c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1424;--card:#172038;--ink:#e8ecf6;--mute:#9aa6c2;--line:#2a3554;--danger:#fb923c;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 'DM Sans',system-ui,-apple-system,'Segoe UI',sans-serif}
+.wrap{max-width:720px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px}
+h1{font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:2rem;margin:0;letter-spacing:-.02em;line-height:1.1}
+.sub{color:var(--mute);margin:4px 0 0;font-size:.95rem}
+nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;margin-bottom:14px}
+button{font:inherit;cursor:pointer;color:inherit}
+nav button,.chip{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 16px;white-space:nowrap}
+nav button[aria-selected="true"],.chip[aria-pressed="true"]{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:700}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+input,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;min-width:0}
+input[type="text"]{flex:1 1 150px}
+input[type="checkbox"]{width:20px;height:20px;accent-color:var(--ink);flex:none}
+textarea{flex:1 1 100%;min-height:84px;resize:vertical}
+.btn{background:var(--ink);color:var(--card);border:0;border-radius:8px;padding:9px 16px;font-weight:700}
+.theme{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 14px}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+:root[data-theme="dark"] :focus-visible{outline-color:var(--acc)}
+ul{list-style:none;margin:0;padding:0}
+.item{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line)}
+.grow{flex:1;min-width:0;overflow-wrap:anywhere}
+.done .grow{text-decoration:line-through;color:var(--mute)}
+.del{background:none;border:0;color:var(--mute);padding:6px 8px;border-radius:6px}
+.del:hover{color:var(--danger)}
+.empty{color:var(--mute);margin:6px 0 0}
+.days{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.time{font-weight:700;min-width:104px;font-variant-numeric:tabular-nums}
+small,.mute{color:var(--mute)}
+.left{font-family:'Bricolage Grotesque',system-ui,sans-serif;font-weight:700;font-size:1.5rem;text-align:right;min-width:96px;line-height:1.1}
+.left.soon{color:var(--danger)}
+.left small{display:block;font-family:'DM Sans',system-ui,sans-serif;font-weight:400;font-size:.8rem}
+.group{font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:1.1rem;margin:18px 0 4px}
+.note{padding:10px 0;border-top:1px solid var(--line);display:flex;gap:12px}
+.note p{margin:0;white-space:pre-wrap}
+footer{margin-top:16px;color:var(--mute);font-size:.85rem}
+@media (max-width:520px){.time{min-width:92px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>StudyDesk</h1>
+      <p class="sub">Tasks, classes, exams and notes in one place.</p>
+    </div>
+    <button class="theme" id="theme" type="button">Dark mode</button>
+  </header>
+  <nav role="tablist" aria-label="Sections">
+    <button role="tab" data-tab="tasks">Tasks</button>
+    <button role="tab" data-tab="tt">Timetable</button>
+    <button role="tab" data-tab="exams">Exams</button>
+    <button role="tab" data-tab="notes">Notes</button>
+  </nav>
+  <main class="panel" id="view"></main>
+  <footer>Everything is saved in this browser, so it stays after you refresh the page.</footer>
+</div>
+<script>
+var KEY='studydesk-v1';
+var S={tasks:[],tt:[],exams:[],notes:[],theme:''};
+try{var raw=localStorage.getItem(KEY);if(raw){S=Object.assign(S,JSON.parse(raw));}}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function $(s){return document.querySelector(s);}
+function esc(t){return String(t).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+var D=[1,2,3,4,5,6,0];
+var SHORT=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var FULL=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+var tab='tasks',day=new Date().getDay();
+
+function applyTheme(){
+  var root=document.documentElement;
+  if(S.theme){root.setAttribute('data-theme',S.theme);}
+  var dark=S.theme?S.theme==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;
+  $('#theme').textContent=dark?'Light mode':'Dark mode';
+}
+
+var views={
+  tasks:function(){
+    var left=S.tasks.filter(function(t){return !t.done;}).length;
+    var done=S.tasks.length-left;
+    var h='<form class="row" data-form="task"><input type="text" name="v" placeholder="What needs to get done?" aria-label="Task" required><button class="btn">Add task</button></form>';
+    if(!S.tasks.length){return h+'<p class="empty">No tasks yet. Add your first one above.</p>';}
+    h+='<ul>'+S.tasks.map(function(t){
+      return '<li class="item '+(t.done?'done':'')+'"><input type="checkbox" data-act="toggle" data-id="'+t.id+'" '+(t.done?'checked':'')+' aria-label="Mark done"><span class="grow">'+esc(t.text)+'</span><button class="del" data-act="del-task" data-id="'+t.id+'" aria-label="Delete task">Delete</button></li>';
+    }).join('')+'</ul>';
+    h+='<p class="empty">'+left+' left'+(done?' &nbsp;<button class="del" data-act="clear">Clear completed</button>':'')+'</p>';
+    return h;
+  },
+  tt:function(){
+    var list=S.tt.filter(function(c){return c.day==day;}).sort(function(a,b){return a.start.localeCompare(b.start);});
+    var h='<div class="days">'+D.map(function(d){return '<button class="chip" data-act="day" data-day="'+d+'" aria-pressed="'+(d==day)+'">'+SHORT[d]+'</button>';}).join('')+'</div>';
+    h+='<form class="row" data-form="tt"><input type="text" name="subject" placeholder="Subject" aria-label="Subject" required><input type="text" name="room" placeholder="Room (optional)" aria-label="Room" style="flex:0 1 140px"><input type="time" name="start" aria-label="Start time" required><input type="time" name="end" aria-label="End time" required><button class="btn">Add class</button></form>';
+    if(!list.length){return h+'<p class="empty">No classes on '+FULL[day]+'. Add one above.</p>';}
+    h+='<ul>'+list.map(function(c){
+      return '<li class="item"><span class="time">'+c.start+'–'+c.end+'</span><span class="grow"><strong>'+esc(c.subject)+'</strong>'+(c.room?'<br><small>Room '+esc(c.room)+'</small>':'')+'</span><button class="del" data-act="del-tt" data-id="'+c.id+'" aria-label="Delete class">Delete</button></li>';
+    }).join('')+'</ul>';
+    return h;
+  },
+  exams:function(){
+    var h='<form class="row" data-form="exam"><input type="text" name="subject" placeholder="Subject" aria-label="Subject" required><input type="date" name="date" aria-label="Exam date" required><button class="btn">Add exam</button></form>';
+    if(!S.exams.length){return h+'<p class="empty">No exams added. Add a subject and its date to start the countdown.</p>';}
+    var t0=new Date();t0.setHours(0,0,0,0);
+    var list=S.exams.slice().sort(function(a,b){return a.date.localeCompare(b.date);});
+    h+='<ul>'+list.map(function(x){
+      var n=Math.round((new Date(x.date+'T00:00:00')-t0)/864e5);
+      var big,small='',soon=n>=0&&n<=3;
+      if(n<0){big='Over';}else if(n===0){big='Today';}else if(n===1){big='Tomorrow';}else{big=n;small='days left';}
+      return '<li class="item"><span class="grow"><strong>'+esc(x.subject)+'</strong><br><small>'+new Date(x.date+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short',year:'numeric'})+'</small></span><span class="left '+(soon?'soon':'')+'">'+big+(small?'<small>'+small+'</small>':'')+'</span><button class="del" data-act="del-exam" data-id="'+x.id+'" aria-label="Delete exam">Delete</button></li>';
+    }).join('')+'</ul>';
+    return h;
+  },
+  notes:function(){
+    var h='<form class="row" data-form="note"><input type="text" name="subject" placeholder="Subject" aria-label="Subject" required><textarea name="body" placeholder="Write your note" aria-label="Note" required></textarea><button class="btn">Save note</button></form>';
+    if(!S.notes.length){return h+'<p class="empty">No notes yet. Pick a subject and write your first note.</p>';}
+    var g={};
+    S.notes.forEach(function(n){var k=n.subject.trim()||'General';(g[k]=g[k]||[]).push(n);});
+    Object.keys(g).sort().forEach(function(k){
+      h+='<h2 class="group">'+esc(k)+'</h2>';
+      g[k].slice().reverse().forEach(function(n){
+        h+='<div class="note"><p class="grow">'+esc(n.body)+'</p><button class="del" data-act="del-note" data-id="'+n.id+'" aria-label="Delete note">Delete</button></div>';
+      });
+    });
+    return h;
+  }
+};
+
+function render(){
+  document.querySelectorAll('nav button').forEach(function(b){b.setAttribute('aria-selected',b.dataset.tab===tab);});
+  $('#view').innerHTML=views[tab]();
+}
+function rm(key,id){S[key]=S[key].filter(function(x){return x.id!==id;});}
+
+document.addEventListener('submit',function(e){
+  var f=e.target.dataset.form;if(!f){return;}
+  e.preventDefault();
+  var d=Object.fromEntries(new FormData(e.target));
+  if(f==='task'){S.tasks.unshift({id:uid(),text:d.v.trim(),done:false});}
+  if(f==='tt'){S.tt.push({id:uid(),day:day,subject:d.subject.trim(),room:d.room.trim(),start:d.start,end:d.end});}
+  if(f==='exam'){S.exams.push({id:uid(),subject:d.subject.trim(),date:d.date});}
+  if(f==='note'){S.notes.push({id:uid(),subject:d.subject.trim(),body:d.body.trim()});}
+  save();render();
+  var first=$('#view input[type="text"]');if(first){first.focus();}
+});
+
+document.addEventListener('click',function(e){
+  var tb=e.target.closest('nav button');
+  if(tb){tab=tb.dataset.tab;render();return;}
+  var el=e.target.closest('[data-act]');if(!el){return;}
+  var a=el.dataset.act,id=el.dataset.id;
+  if(a==='toggle'){S.tasks.forEach(function(t){if(t.id===id){t.done=!t.done;}});}
+  else if(a==='del-task'){rm('tasks',id);}
+  else if(a==='clear'){S.tasks=S.tasks.filter(function(t){return !t.done;});}
+  else if(a==='day'){day=+el.dataset.day;render();return;}
+  else if(a==='del-tt'){rm('tt',id);}
+  else if(a==='del-exam'){rm('exams',id);}
+  else if(a==='del-note'){rm('notes',id);}
+  save();render();
+});
+
+$('#theme').addEventListener('click',function(){
+  var dark=S.theme?S.theme==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;
+  S.theme=dark?'light':'dark';
+  save();applyTheme();
+});
+
+applyTheme();render();
+</script>
+</body>
+</html>
